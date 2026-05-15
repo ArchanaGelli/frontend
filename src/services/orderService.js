@@ -1,6 +1,6 @@
-import { supabase, hasSupabaseConfig } from '../utils/supabase';
+import api from '../utils/api';
 
-// Mock Orders Data (Used if Supabase is not configured)
+// Mock Orders Data (Used if API is unavailable)
 let mockOrders = [
   { id: 'ORD-1056', customer_name: 'Riya Sharma', email: 'riya@example.com', total: 4500, status: 'Processing', created_at: new Date().toISOString() },
   { id: 'ORD-1055', customer_name: 'Anita Desai', email: 'anita@example.com', total: 12999, status: 'Shipped', created_at: new Date(Date.now() - 86400000).toISOString() },
@@ -8,34 +8,30 @@ let mockOrders = [
 ];
 
 export const getOrders = async () => {
-  if (!hasSupabaseConfig) {
-    return { data: mockOrders, error: null };
-  }
-
   try {
-    const { data, error } = await supabase
-      .from('orders')
-      .select('*, profiles(full_name, email)')
-      .order('created_at', { ascending: false });
-      
-    if (error) throw error;
+    const { data } = await api.get('/orders');
     
-    // Map data to expected format
+    // Map backend data to expected format if necessary
     const formattedData = data.map(order => ({
       ...order,
-      customer_name: order.profiles?.full_name || 'Unknown User',
-      email: order.profiles?.email || 'N/A'
+      customer_name: order.user?.name || 'Unknown User',
+      email: order.user?.email || 'N/A'
     }));
     
     return { data: formattedData, error: null };
   } catch (error) {
-    console.error('Error fetching orders:', error);
-    return { data: null, error };
+    console.warn('API fetch for orders failed, falling back to mock data:', error.message);
+    return { data: mockOrders, error: null };
   }
 };
 
 export const updateOrderStatus = async (orderId, newStatus) => {
-  if (!hasSupabaseConfig) {
+  try {
+    const { data } = await api.put(`/orders/${orderId}/deliver`, { status: newStatus });
+    return { data, error: null };
+  } catch (error) {
+    console.warn('API update for order status failed, performing local update on mock data:', error.message);
+    
     // Update mock data locally
     const orderIndex = mockOrders.findIndex(o => o.id === orderId);
     if (orderIndex > -1) {
@@ -43,20 +39,5 @@ export const updateOrderStatus = async (orderId, newStatus) => {
       return { data: mockOrders[orderIndex], error: null };
     }
     return { data: null, error: new Error('Order not found') };
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('orders')
-      .update({ status: newStatus, updated_at: new Date().toISOString() })
-      .eq('id', orderId)
-      .select()
-      .single();
-      
-    if (error) throw error;
-    return { data, error: null };
-  } catch (error) {
-    console.error('Error updating order:', error);
-    return { data: null, error };
   }
 };

@@ -5,12 +5,6 @@ import { hasSupabaseConfig } from '../../utils/supabase';
 export default function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth();
 
-  if (!hasSupabaseConfig) {
-    // If Supabase isn't configured, bypass protection for development/demo purposes
-    // Alternatively, you could block access entirely, but we want the UI to be testable
-    return children;
-  }
-
   if (loading) {
     return (
       <div style={{ height: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -24,8 +18,8 @@ export default function ProtectedRoute({ children, adminOnly = false }) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Basic admin check - in a real app, query the database for user roles
-  if (adminOnly && user.email !== 'admin@archanacollections.in') {
+  // Admin check using our backend's isAdmin property
+  if (adminOnly && !user.isAdmin) {
     return <Navigate to="/" replace />;
   }
 

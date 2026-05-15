@@ -1,89 +1,56 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, hasSupabaseConfig } from '../utils/supabase';
+import api from '../utils/api';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!hasSupabaseConfig) {
-      setLoading(false);
-      return;
+    // Check if user is logged in via localStorage
+    const userInfo = localStorage.getItem('userInfo')
+      ? JSON.parse(localStorage.getItem('userInfo'))
+      : null;
+    
+    if (userInfo) {
+      setUser(userInfo);
     }
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user || null);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user || null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    setLoading(false);
   }, []);
 
-  const signUp = async (email, password, fullName) => {
-    if (!hasSupabaseConfig) {
-      toast.error('Authentication is not configured yet.');
-      return { error: new Error('Not configured') };
-    }
-    
+  const signUp = async (email, password, name) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName }
-        }
-      });
-      if (error) throw error;
+      const { data } = await api.post('/users', { name, email, password });
+      setUser(data);
+      localStorage.setItem('userInfo', JSON.stringify(data));
       return { data, error: null };
     } catch (error) {
-      return { data: null, error };
+      const message = error.response?.data?.message || error.message;
+      return { data: null, error: new Error(message) };
     }
   };
 
   const signIn = async (email, password) => {
-    if (!hasSupabaseConfig) {
-      toast.error('Authentication is not configured yet.');
-      return { error: new Error('Not configured') };
-    }
-    
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      if (error) throw error;
+      const { data } = await api.post('/users/login', { email, password });
+      setUser(data);
+      localStorage.setItem('userInfo', JSON.stringify(data));
       return { data, error: null };
     } catch (error) {
-      return { data: null, error };
+      const message = error.response?.data?.message || error.message;
+      return { data: null, error: new Error(message) };
     }
   };
 
-  const signOut = async () => {
-    if (!hasSupabaseConfig) return;
-    
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error signing out:', error.message);
-    }
+  const signOut = () => {
+    localStorage.removeItem('userInfo');
+    setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
