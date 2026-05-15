@@ -3,7 +3,6 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
-import { hasSupabaseConfig } from '../utils/supabase';
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
@@ -20,11 +19,6 @@ export default function AuthPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!hasSupabaseConfig) {
-      toast.error('Supabase is not configured yet. Set up your environment variables.');
-      return;
-    }
-
     setLoading(true);
     
     if (isLogin) {
@@ -87,11 +81,6 @@ export default function AuthPage() {
                 </p>
               </div>
 
-              {!hasSupabaseConfig && (
-                <div style={{ background: '#fff3cd', color: '#856404', padding: '12px', borderRadius: '4px', fontSize: '13px', marginBottom: '20px', border: '1px solid #ffeeba' }}>
-                  <strong>Demo Mode:</strong> Database is not connected yet. Authentication is disabled.
-                </div>
-              )}
 
               <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {!isLogin && (
@@ -131,9 +120,9 @@ export default function AuthPage() {
 
                 <button 
                   type="submit" 
-                  disabled={loading || !hasSupabaseConfig}
+                  disabled={loading}
                   className="btn btn-primary btn-lg" 
-                  style={{ width: '100%', marginTop: '8px', opacity: (loading || !hasSupabaseConfig) ? 0.7 : 1 }}
+                  style={{ width: '100%', marginTop: '8px', opacity: loading ? 0.7 : 1 }}
                 >
                   {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
                 </button>
